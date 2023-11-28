@@ -1,0 +1,7 @@
+{
+  "strings": {
+    "ITEM_AUTOCASTEQUIPMENT_PICKUP": "Dramatically reduce Equipment cooldown and automatically activate it.",
+    "ITEM_RANDOMEQUIPMENTTRIGGER_PICKUP" : "Activating your Equipment triggers an additional, random Equipment effect... <color=#FF7F7F>\BUT incurs longer cooldown.</color>",
+	"ITEM_RANDOMEQUIPMENTTRIGGER_DESC" : "Trigger a <style=cIsDamage>random equipment</style> effect <style=cIsDamage>1</style> <style=cStack>(+1 per stack)</style> time(s). The <style=cIsUtility>Equipment cooldown</style> will be increased by <style=cIsUtility>50%</style> of all additional activated effects.",
+  },
+}
