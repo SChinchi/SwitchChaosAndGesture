@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
 	<LangVersion>latest</LangVersion>
 	<Version>1.0.0</Version>
-	<Authors>GChinchi</Authors>
+	<Authors>Chinchi</Authors>
 	<Description>Gesture of the Drowned and Bottled Chaos switch item tiers.</Description>
 	<RepositoryUrl>https://github.com/schinchi/SwitchChaosAndGesture</RepositoryUrl>
   </PropertyGroup>
@@ -35,7 +35,7 @@
 
   <Target Name="BuildRelease" AfterTargets="ValidateVersion" Condition="'$(Configuration)'=='Release'">
     <Copy SourceFiles="$(OutDir)$(TargetFileName)" DestinationFolder="$(SolutionDir)Thunderstore" />
-    <Copy SourceFiles="$(SolutionDir)README.MD" DestinationFolder="$(SolutionDir)Thunderstore" />
+    <Copy SourceFiles="$(SolutionDir)README.md" DestinationFolder="$(SolutionDir)Thunderstore" />
     <Exec Command="pwsh –ExecutionPolicy Bypass -Command &quot;&amp; '$(SolutionDir)Build\BuildRelease.ps1' '$(Authors)' '$(AssemblyName)' '$(Version)' '$(RepositoryUrl)' '$(Description)'&quot;" />
   </Target>
 
