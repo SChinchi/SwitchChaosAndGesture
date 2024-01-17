@@ -28,6 +28,7 @@ namespace SwitchChaosAndGesture
             IL.RoR2.Inventory.SetEquipmentInternal += Inventory_SetEquipmentInternal;
             IL.RoR2.Inventory.UpdateEquipment += Inventory_UpdateEquipment;
             IL.RoR2.EquipmentSlot.OnEquipmentExecuted += EquipmentSlot_OnEquipmentExecuted;
+            IL.EntityStates.GoldGat.BaseGoldGatState.FixedUpdate += BaseGoldGatState_FixedUpdate;
             Inventory.onInventoryChangedGlobal += Inventory_onInventoryChangedGlobal;
             Run.onRunDestroyGlobal += Run_onRunDestroyGlobal;
         }
@@ -50,6 +51,28 @@ namespace SwitchChaosAndGesture
             c.EmitDelegate<Func<bool, EquipmentSlot, bool>>((autocast, equipmentSlot) =>
             {
                 return autocast && !bannedAutocastEquipment.Contains(equipmentSlot.equipmentIndex);
+            });
+        }
+
+        private static void BaseGoldGatState_FixedUpdate(ILContext il)
+        {
+            var c = new ILCursor(il);
+            if (!c.TryGotoNext(
+                MoveType.After,
+                x => x.MatchCallvirt<Inventory>("GetItemCount"),
+                x => x.MatchLdcI4(0),
+                x => x.MatchBle(out _),
+                x => x.MatchLdarg(0),
+                x => x.MatchLdcI4(1)
+            ))
+            {
+                SwitchChaosAndGesture.Logger.LogError(BASE_ERROR_MESSAGE + "EntityStates.GoldGat.BaseGoldGatState.FixedUpdate");
+                return;
+            }
+            c.Emit(OpCodes.Ldarg_0);
+            c.EmitDelegate<Func<bool, EntityStates.GoldGat.BaseGoldGatState ,bool>>((autocast, state) =>
+            {
+                return state.shouldFire || (autocast && !bannedAutocastEquipment.Contains(RoR2Content.Equipment.GoldGat.equipmentIndex));
             });
         }
 
