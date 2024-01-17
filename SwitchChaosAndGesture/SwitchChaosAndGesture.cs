@@ -23,6 +23,7 @@ namespace SwitchChaosAndGesture
 
         internal static ConfigEntry<bool> isGestureAllowed, isGestureBlacklisted;
         internal static ConfigEntry<string> bannedAutocastEquipment;
+        internal static ConfigEntry<float> chaosCooldownPenalty;
         internal static AssetBundle assetBundle;
         internal static new BepInEx.Logging.ManualLogSource Logger;
 
@@ -32,6 +33,12 @@ namespace SwitchChaosAndGesture
             isGestureAllowed = Config.Bind("Settings", "allowGesture", true, "Allow Gesture of the Drowned to be in the item pool.");
             isGestureBlacklisted = Config.Bind("Settings", "blacklistGesture", false, "Blacklist the item for enemies.");
             bannedAutocastEquipment = Config.Bind("Settings", "bannedAutocastEquipment", "Recycle,GoldGat,BossHunter,FireBallDash", "Which equipment will not be autocast with Gesture. Run the 'equipment_list' command on the console for a list of all internal name options.");
+            chaosCooldownPenalty = Config.Bind("Settings", "chaosCooldown", .2f, "The percent of the activated equipment's cooldown that will be added on due to Bottled Chaos' effect.");
+            if (chaosCooldownPenalty.Value < 0)
+            {
+                chaosCooldownPenalty.Value = 0f;
+                Logger.LogWarning("The 'chaosCooldown' config setting has a negative value. Readjusting to 0.0");
+            }
             LoadBundle(Info.Location);
             Hooks.Init();
             RoR2Application.onLoad += ApplyModelChanges;

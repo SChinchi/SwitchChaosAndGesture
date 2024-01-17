@@ -12,7 +12,6 @@ namespace SwitchChaosAndGesture
     internal class Hooks
     {
         private const string BASE_ERROR_MESSAGE = "Failed to patch method: ";
-        private const float COOLDOWN_PENALTY_SCALE = 0.5f;
 
         private static bool popNextCooldown = false;
         internal static readonly Dictionary<CharacterMaster, List<float>[]> masterCooldowns = new();
@@ -224,7 +223,7 @@ namespace SwitchChaosAndGesture
                         {
                             var extraCooldown = cooldownQueue[0];
                             cooldownQueue.RemoveAt(0);
-                            return equipmentCooldown + extraCooldown * COOLDOWN_PENALTY_SCALE;
+                            return equipmentCooldown + extraCooldown * SwitchChaosAndGesture.chaosCooldownPenalty.Value;
                         }
                     }
                 }
@@ -295,7 +294,7 @@ namespace SwitchChaosAndGesture
             c.EmitDelegate(() => {
                 if (addCooldownNow)
                 {
-                    var extraCooldown = masterCooldowns[master][slot][0] * inventory.CalculateEquipmentCooldownScale() * COOLDOWN_PENALTY_SCALE;
+                    var extraCooldown = masterCooldowns[master][slot][0] * inventory.CalculateEquipmentCooldownScale() * SwitchChaosAndGesture.chaosCooldownPenalty.Value;
                     masterCooldowns[master][slot].RemoveAt(0);
                     var state = inventory.GetEquipment(slot);
                     inventory.SetEquipment(new EquipmentState(state.equipmentIndex, state.chargeFinishTime + extraCooldown, state.charges), slot);
