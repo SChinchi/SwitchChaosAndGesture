@@ -19,7 +19,7 @@ namespace SwitchChaosAndGesture
         public const string PluginGUID = PluginAuthor + "." + PluginName;
         public const string PluginAuthor = "GChinchi";
         public const string PluginName = "SwitchChaosAndGesture";
-        public const string PluginVersion = "1.0.0";
+        public const string PluginVersion = "1.1.0";
 
         internal static ConfigEntry<bool> isGestureAllowed, isGestureBlacklisted;
         internal static ConfigEntry<string> bannedAutocastEquipment;

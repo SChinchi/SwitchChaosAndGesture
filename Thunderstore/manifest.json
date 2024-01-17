@@ -1,6 +1,6 @@
 {
   "name": "SwitchChaosAndGesture",
-  "version_number": "1.0.0",
+  "version_number": "1.1.0",
   "website_url": "https://github.com/schinchi/SwitchChaosAndGesture",
   "description": "Gesture of the Drowned and Bottled Chaos switch item tiers.",
   "dependencies": [
