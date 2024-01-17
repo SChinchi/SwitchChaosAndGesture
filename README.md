@@ -7,7 +7,7 @@ Bottled Chaos' random nature and Gesture of the Drowned's ineffective drawback m
 ## Features
 
 ### Bottled Chaos
-- Add 50% of the equipment cooldown of each additional effect activated.
+- Add 20% of the equipment cooldown of each additional effect activated. Configurable.
 
 ### Gesture of the Drowned
 - Config option to prevent it from automatically activating certain equipment.
