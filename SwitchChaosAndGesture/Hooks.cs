@@ -23,7 +23,7 @@ namespace SwitchChaosAndGesture
             On.RoR2.EquipmentCatalog.SetEquipmentDefs += EquipmentCatalog_SetEquipmentDefs;
             On.RoR2.CharacterMaster.OnEnable += CharacterMaster_OnEnable;
             On.RoR2.CharacterMaster.OnDisable += CharacterMaster_OnDisable;
-            IL.RoR2.EquipmentSlot.FixedUpdate += EquipmentSlot_FixedUpdate;
+            IL.RoR2.EquipmentSlot.MyFixedUpdate += EquipmentSlot_MyFixedUpdate;
             IL.RoR2.Inventory.SetEquipmentInternal += Inventory_SetEquipmentInternal;
             IL.RoR2.Inventory.UpdateEquipment += Inventory_UpdateEquipment;
             IL.RoR2.EquipmentSlot.OnEquipmentExecuted += EquipmentSlot_OnEquipmentExecuted;
@@ -32,7 +32,7 @@ namespace SwitchChaosAndGesture
             Run.onRunDestroyGlobal += Run_onRunDestroyGlobal;
         }
 
-        private static void EquipmentSlot_FixedUpdate(ILContext il)
+        private static void EquipmentSlot_MyFixedUpdate(ILContext il)
         {
             var c = new ILCursor(il);
             if (!c.TryGotoNext(

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
 	<LangVersion>latest</LangVersion>
 	<Version>1.1.0</Version>
 	<Authors>Chinchi</Authors>
@@ -10,19 +10,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BepInEx.Analyzers" Version="1.0.*">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
     <PackageReference Include="BepInEx.Core" Version="5.4.21" GeneratePathProperty="true" />
-	<PackageReference Include="MMHOOK.RoR2" Version="2022.9.20" NoWarn="NU1701" />
+	<PackageReference Include="MMHOOK.RoR2" Version="2024.11.4" NoWarn="NU1701" />
     <PackageReference Include="R2API.Language" Version="1.0.1" />
-    <PackageReference Include="RiskOfRain2.GameLibs" Version="1.2.4-r.0" GeneratePathProperty="true" />
-    <PackageReference Include="UnityEngine.Modules" Version="2019.4.26" GeneratePathProperty="true" />
+    <PackageReference Include="RiskOfRain2.GameLibs" Version="1.3.5-r.2" GeneratePathProperty="true" />
+    <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" GeneratePathProperty="true" />
   </ItemGroup>
  
   <Target Name="ValidateVersion" AfterTargets="PostBuildEvent">
-    <Exec Command="pwsh –ExecutionPolicy Bypass -Command &quot;&amp; '$(SolutionDir)Build\CheckVersion.ps1' '$(OutDir)$(TargetFileName)' '$(Version)' '$(PkgBepInEx_Core)\..\..\bepinex.baselib\5.4.20\lib\netstandard2.0\BepInEx.dll' '$(PkgUnityEngine_Modules)\lib\netstandard2.0\UnityEngine.dll'&quot;" />
+    <Exec Command="pwsh –ExecutionPolicy Bypass -Command &quot;&amp; '$(SolutionDir)Build\CheckVersion.ps1' '$(ProjectDir)$(TargetName).cs' '$(Version)'&quot;" />
   </Target>
 
   <Target Name="CopyToDev" AfterTargets="ValidateVersion" Condition="'$(Configuration)'=='Debug'">
@@ -39,13 +35,5 @@
     <Copy SourceFiles="$(SolutionDir)CHANGELOG.md" DestinationFolder="$(SolutionDir)Thunderstore" />
     <Exec Command="pwsh –ExecutionPolicy Bypass -Command &quot;&amp; '$(SolutionDir)Build\BuildRelease.ps1' '$(Authors)' '$(AssemblyName)' '$(Version)' '$(RepositoryUrl)' '$(Description)'&quot;" />
   </Target>
-
-  <ItemGroup>
-    <EditorConfigFiles Remove="C:\Users\Chinchi\Desktop\VisualStudio\SwitchChaosAndGesture\.editorconfig" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="C:\Users\Chinchi\Desktop\VisualStudio\SwitchChaosAndGesture\.editorconfig" />
-  </ItemGroup>
  
 </Project>
