@@ -28,6 +28,7 @@ namespace SwitchChaosAndGesture
             IL.RoR2.EquipmentSlot.OnEquipmentExecuted += ApplyOrQueueCooldownPenaltyOnExecute;
             Inventory.onInventoryChangedGlobal += EnsureNoTrackedCooldownsWithoutChaos;
             Run.onRunDestroyGlobal += ResetMasterDict;
+            On.RoR2.Language.GetLocalizedStringByToken += FormatBottledChaosDesc;
         }
 
         private static void CollectGestureBlacklistedEquipment(On.RoR2.EquipmentCatalog.orig_SetEquipmentDefs orig, EquipmentDef[] newEquipmentDefs)
@@ -279,6 +280,16 @@ namespace SwitchChaosAndGesture
         private static void ResetMasterDict(Run obj)
         {
             masterCooldowns.Clear();
+        }
+
+        private static string FormatBottledChaosDesc(On.RoR2.Language.orig_GetLocalizedStringByToken orig, Language self, string token)
+        {
+            var result = orig(self, token);
+            if (token == "ITEM_RANDOMEQUIPMENTTRIGGER_DESC")
+            {
+                result = string.Format(result, SwitchChaosAndGesture.chaosCooldownPenalty.Value * 100f);
+            }
+            return result;
         }
 
         #if DEBUG
