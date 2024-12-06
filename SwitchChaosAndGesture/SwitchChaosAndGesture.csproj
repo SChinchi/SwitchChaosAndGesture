@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
 	<LangVersion>latest</LangVersion>
-	<Version>1.1.0</Version>
+	<Version>1.1.1</Version>
 	<Authors>Chinchi</Authors>
 	<Description>Gesture of the Drowned and Bottled Chaos switch item tiers.</Description>
 	<RepositoryUrl>https://github.com/schinchi/SwitchChaosAndGesture</RepositoryUrl>
