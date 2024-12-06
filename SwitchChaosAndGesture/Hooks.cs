@@ -3,7 +3,6 @@ using MonoMod.Cil;
 using RoR2;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -19,7 +18,6 @@ namespace SwitchChaosAndGesture
 
         public static void Init()
         {
-            On.RoR2.ItemCatalog.SetItemDefs += ItemCatalog_SetItemDefs;
             On.RoR2.EquipmentCatalog.SetEquipmentDefs += EquipmentCatalog_SetEquipmentDefs;
             On.RoR2.CharacterMaster.OnEnable += CharacterMaster_OnEnable;
             On.RoR2.CharacterMaster.OnDisable += CharacterMaster_OnDisable;
@@ -75,23 +73,6 @@ namespace SwitchChaosAndGesture
             });
         }
 
-        private static void ItemCatalog_SetItemDefs(On.RoR2.ItemCatalog.orig_SetItemDefs orig, ItemDef[] newItemDefs)
-        {
-            foreach (var itemDef in newItemDefs)
-            {
-                if (itemDef == DLC1Content.Items.RandomEquipmentTrigger)
-                {
-                    UpdateItemDef(itemDef, ItemTier.Lunar, "texBottledChaosIcon", true);
-                }
-                else if (itemDef == RoR2Content.Items.AutoCastEquipment)
-                {
-                    UpdateItemDef(itemDef, ItemTier.Tier3, "texFossilIcon", SwitchChaosAndGesture.isGestureAllowed.Value);
-                    AddOrRemoveTag(itemDef, ItemTag.AIBlacklist, SwitchChaosAndGesture.isGestureBlacklisted.Value);
-                }
-            }
-            orig(newItemDefs);
-        }
-
         private static void EquipmentCatalog_SetEquipmentDefs(On.RoR2.EquipmentCatalog.orig_SetEquipmentDefs orig, EquipmentDef[] newEquipmentDefs)
         {
             orig(newEquipmentDefs);
@@ -101,34 +82,6 @@ namespace SwitchChaosAndGesture
             }
             // In case of any name typos resulting to none
             bannedAutocastEquipment.Remove(EquipmentIndex.None);
-        }
-
-        private static void UpdateItemDef(ItemDef itemDef, ItemTier tier, string sprite, bool isDroppable)
-        {
-            itemDef.deprecatedTier = tier;
-            itemDef.tier = tier;
-            var assetBundle = SwitchChaosAndGesture.assetBundle;
-            if (assetBundle != null)
-            {
-                itemDef.pickupIconSprite = assetBundle.LoadAsset<Sprite>(sprite);
-            }
-            AddOrRemoveTag(itemDef, ItemTag.WorldUnique, isDroppable);
-        }
-
-        private static void AddOrRemoveTag(ItemDef itemDef, ItemTag tag, bool add)
-        {
-            if (add && itemDef.tags.Contains(tag))
-            {
-                var tags = itemDef.tags.ToList();
-                tags.Remove(tag);
-                itemDef.tags = tags.ToArray();
-            }
-            else if (!add && !itemDef.tags.Contains(tag))
-            {
-                var tags = itemDef.tags.ToList();
-                tags.Add(tag);
-                itemDef.tags = tags.ToArray();
-            }
         }
 
         private static void CharacterMaster_OnEnable(On.RoR2.CharacterMaster.orig_OnEnable orig, CharacterMaster self)

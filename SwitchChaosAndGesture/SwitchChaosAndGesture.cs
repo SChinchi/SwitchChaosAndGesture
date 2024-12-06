@@ -1,9 +1,11 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
 using RoR2;
+using System.Linq;
 using System.Security.Permissions;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
+using UnityEngine.ResourceManagement.AsyncOperations;
 
 #pragma warning disable CS0618
 [assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
@@ -40,6 +42,7 @@ namespace SwitchChaosAndGesture
                 Logger.LogWarning("The 'chaosCooldown' config setting has a negative value. Readjusting to 0.0");
             }
             LoadBundle(Info.Location);
+            ModifyItems();
             Hooks.Init();
             RoR2Application.onLoad += ApplyModelChanges;
         }
@@ -51,6 +54,61 @@ namespace SwitchChaosAndGesture
             if (assetBundle == null)
             {
                 Logger.LogError($"Failed to load '{filename}'");
+            }
+        }
+
+        private static void ModifyItems()
+        {
+            Addressables.LoadAssetAsync<ItemDef>("RoR2/Base/AutoCastEquipment/AutoCastEquipment.asset").Completed += Modify;
+            Addressables.LoadAssetAsync<ItemDef>("RoR2/DLC1/RandomEquipmentTrigger/RandomEquipmentTrigger.asset").Completed += Modify;
+
+            static void Modify(AsyncOperationHandle<ItemDef> handle)
+            {
+                var itemDef = handle.Result;
+                if (itemDef.name == "RandomEquipmentTrigger")
+                {
+                    UpdateItemDef(itemDef, ItemTier.Lunar, "texBottledChaosIcon", true);
+                }
+                else if (itemDef.name == "AutoCastEquipment")
+                {
+                    UpdateItemDef(itemDef, ItemTier.Tier3, "texFossilIcon", isGestureAllowed.Value);
+                    ModifyItemTag(itemDef, ItemTag.AIBlacklist, isGestureBlacklisted.Value);
+                }
+            }
+        }
+
+        private static void UpdateItemDef(ItemDef itemDef, ItemTier tier, string sprite, bool isDroppable)
+        {
+            #pragma warning disable CS0618
+            itemDef.deprecatedTier = tier;
+            #pragma warning restore CS0618
+            var assetBundle = SwitchChaosAndGesture.assetBundle;
+            if (assetBundle != null)
+            {
+                itemDef.pickupIconSprite = assetBundle.LoadAsset<Sprite>(sprite);
+            }
+            ModifyItemTag(itemDef, ItemTag.WorldUnique, !isDroppable);
+        }
+
+        private static void ModifyItemTag(ItemDef itemDef, ItemTag tag, bool include)
+        {
+            if (!include)
+            {
+                if (itemDef.tags.Contains(tag))
+                {
+                    var tags = itemDef.tags.ToList();
+                    tags.Remove(tag);
+                    itemDef.tags = tags.ToArray();
+                }
+            }
+            else
+            {
+                if (!itemDef.tags.Contains(tag))
+                {
+                    var tags = itemDef.tags.ToList();
+                    tags.Add(tag);
+                    itemDef.tags = tags.ToArray();
+                }
             }
         }
 
