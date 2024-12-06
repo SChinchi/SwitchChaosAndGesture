@@ -13,24 +13,35 @@ namespace SwitchChaosAndGesture
         private const string BASE_ERROR_MESSAGE = "Failed to patch method: ";
 
         private static bool popNextCooldown = false;
-        internal static readonly Dictionary<CharacterMaster, List<float>[]> masterCooldowns = new();
-        private static readonly HashSet<EquipmentIndex> bannedAutocastEquipment = new();
+        internal static readonly Dictionary<CharacterMaster, List<float>[]> masterCooldowns = [];
+        private static readonly HashSet<EquipmentIndex> bannedAutocastEquipment = [];
 
         public static void Init()
         {
-            On.RoR2.EquipmentCatalog.SetEquipmentDefs += EquipmentCatalog_SetEquipmentDefs;
-            On.RoR2.CharacterMaster.OnEnable += CharacterMaster_OnEnable;
-            On.RoR2.CharacterMaster.OnDisable += CharacterMaster_OnDisable;
-            IL.RoR2.EquipmentSlot.MyFixedUpdate += EquipmentSlot_MyFixedUpdate;
-            IL.RoR2.Inventory.SetEquipmentInternal += Inventory_SetEquipmentInternal;
-            IL.RoR2.Inventory.UpdateEquipment += Inventory_UpdateEquipment;
-            IL.RoR2.EquipmentSlot.OnEquipmentExecuted += EquipmentSlot_OnEquipmentExecuted;
-            IL.EntityStates.GoldGat.BaseGoldGatState.FixedUpdate += BaseGoldGatState_FixedUpdate;
-            Inventory.onInventoryChangedGlobal += Inventory_onInventoryChangedGlobal;
-            Run.onRunDestroyGlobal += Run_onRunDestroyGlobal;
+            On.RoR2.EquipmentCatalog.SetEquipmentDefs += CollectGestureBlacklistedEquipment;
+            IL.RoR2.EquipmentSlot.MyFixedUpdate += CheckEquipmentCanBeAutocast;
+            IL.EntityStates.GoldGat.BaseGoldGatState.FixedUpdate += CheckCrowdfunderCanBeAutocast;
+            On.RoR2.CharacterMaster.OnEnable += AddMasterToDict;
+            On.RoR2.CharacterMaster.OnDisable += RemoveMasterFromDict;
+            IL.RoR2.Inventory.SetEquipmentInternal += InitialiseCooldownTrackingForNewSlots;
+            IL.RoR2.Inventory.UpdateEquipment += ApplyCooldownPenaltyOnChargeGain;
+            IL.RoR2.EquipmentSlot.OnEquipmentExecuted += ApplyOrQueueCooldownPenaltyOnExecute;
+            Inventory.onInventoryChangedGlobal += EnsureNoTrackedCooldownsWithoutChaos;
+            Run.onRunDestroyGlobal += ResetMasterDict;
         }
 
-        private static void EquipmentSlot_MyFixedUpdate(ILContext il)
+        private static void CollectGestureBlacklistedEquipment(On.RoR2.EquipmentCatalog.orig_SetEquipmentDefs orig, EquipmentDef[] newEquipmentDefs)
+        {
+            orig(newEquipmentDefs);
+            foreach (var name in SwitchChaosAndGesture.bannedAutocastEquipment.Value.Split(','))
+            {
+                bannedAutocastEquipment.Add(EquipmentCatalog.FindEquipmentIndex(name.Trim()));
+            }
+            // In case of any name typos resulting to none
+            bannedAutocastEquipment.Remove(EquipmentIndex.None);
+        }
+
+        private static void CheckEquipmentCanBeAutocast(ILContext il)
         {
             var c = new ILCursor(il);
             if (!c.TryGotoNext(
@@ -51,7 +62,7 @@ namespace SwitchChaosAndGesture
             });
         }
 
-        private static void BaseGoldGatState_FixedUpdate(ILContext il)
+        private static void CheckCrowdfunderCanBeAutocast(ILContext il)
         {
             var c = new ILCursor(il);
             if (!c.TryGotoNext(
@@ -63,7 +74,7 @@ namespace SwitchChaosAndGesture
                 x => x.MatchLdcI4(1)
             ))
             {
-                SwitchChaosAndGesture.Logger.LogError(BASE_ERROR_MESSAGE + "EntityStates.GoldGat.BaseGoldGatState.FixedUpdate");
+                SwitchChaosAndGesture.Logger.LogError(BASE_ERROR_MESSAGE + il.Method.Name);
                 return;
             }
             c.Emit(OpCodes.Ldarg_0);
@@ -73,27 +84,16 @@ namespace SwitchChaosAndGesture
             });
         }
 
-        private static void EquipmentCatalog_SetEquipmentDefs(On.RoR2.EquipmentCatalog.orig_SetEquipmentDefs orig, EquipmentDef[] newEquipmentDefs)
-        {
-            orig(newEquipmentDefs);
-            foreach (var name in SwitchChaosAndGesture.bannedAutocastEquipment.Value.Split(','))
-            {
-                bannedAutocastEquipment.Add(EquipmentCatalog.FindEquipmentIndex(name.Trim()));
-            }
-            // In case of any name typos resulting to none
-            bannedAutocastEquipment.Remove(EquipmentIndex.None);
-        }
-
-        private static void CharacterMaster_OnEnable(On.RoR2.CharacterMaster.orig_OnEnable orig, CharacterMaster self)
+        private static void AddMasterToDict(On.RoR2.CharacterMaster.orig_OnEnable orig, CharacterMaster self)
         {
             orig(self);
             if (NetworkServer.active && !masterCooldowns.ContainsKey(self))
             {
-                masterCooldowns[self] = new List<float>[0];
+                masterCooldowns[self] = [];
             }
         }
 
-        private static void CharacterMaster_OnDisable(On.RoR2.CharacterMaster.orig_OnDisable orig, CharacterMaster self)
+        private static void RemoveMasterFromDict(On.RoR2.CharacterMaster.orig_OnDisable orig, CharacterMaster self)
         {
             orig(self);
             if (NetworkServer.active && masterCooldowns.ContainsKey(self))
@@ -102,7 +102,7 @@ namespace SwitchChaosAndGesture
             }
         }
 
-        private static void Inventory_SetEquipmentInternal(ILContext il)
+        private static void InitialiseCooldownTrackingForNewSlots(ILContext il)
         {
             var c = new ILCursor(il);
             if (!c.TryGotoNext(
@@ -113,7 +113,7 @@ namespace SwitchChaosAndGesture
                 x => x.MatchConvI4()
             ))
             {
-                SwitchChaosAndGesture.Logger.LogError(BASE_ERROR_MESSAGE + "Inventory.SetEquipmentInternal");
+                SwitchChaosAndGesture.Logger.LogError(BASE_ERROR_MESSAGE + il.Method.Name);
                 return;
             }
             c.Emit(OpCodes.Ldarg_0);
@@ -130,7 +130,7 @@ namespace SwitchChaosAndGesture
                             Array.Resize(ref cooldowns, (int)(slot + 1U));
                             for (int i = num; i < cooldowns.Length; i++)
                             {
-                                cooldowns[i] = new();
+                                cooldowns[i] = [];
                             }
                             masterCooldowns[master] = cooldowns;
                         }
@@ -140,7 +140,7 @@ namespace SwitchChaosAndGesture
             });
         }
 
-        private static void Inventory_UpdateEquipment(ILContext il)
+        private static void ApplyCooldownPenaltyOnChargeGain(ILContext il)
         {
             var c = new ILCursor(il);
             if (!c.TryGotoNext(
@@ -150,7 +150,7 @@ namespace SwitchChaosAndGesture
                 x => x.MatchLdfld<EquipmentDef>("cooldown")
             ))
             {
-                SwitchChaosAndGesture.Logger.LogError(BASE_ERROR_MESSAGE + "RoR2.Inventory.UpdateEquipment");
+                SwitchChaosAndGesture.Logger.LogError(BASE_ERROR_MESSAGE + il.Method.Name);
                 return;
             }
             c.Emit(OpCodes.Ldarg_0);
@@ -164,7 +164,7 @@ namespace SwitchChaosAndGesture
                     if (cooldowns.Length <= slot)
                     {
                         // This should never happen
-                        SwitchChaosAndGesture.Logger.LogWarning("IL.Inventory.UpdateEquipment cooldown array not resized properly.");
+                        SwitchChaosAndGesture.Logger.LogWarning("Inventory.UpdateEquipment cooldown array not resized properly.");
                         return equipmentCooldown;
                     }
                     var cooldownQueue = cooldowns[slot];
@@ -184,9 +184,9 @@ namespace SwitchChaosAndGesture
             });
         }
 
-        private static void EquipmentSlot_OnEquipmentExecuted(ILContext il)
+        private static void ApplyOrQueueCooldownPenaltyOnExecute(ILContext il)
         {
-            var errorMessage = BASE_ERROR_MESSAGE + "RoR2.EquipmentSlot.OnEquipmentExecuted";
+            var errorMessage = BASE_ERROR_MESSAGE + il.Method.Name;
             Inventory inventory = null;
             CharacterMaster master = null;
             byte slot = 0;
@@ -231,7 +231,7 @@ namespace SwitchChaosAndGesture
                 var cooldownQueue = masterCooldowns[master][slot];
                 if (cooldownQueue.Count == 0)
                 {
-                    SwitchChaosAndGesture.Logger.LogError("IL.EquipmentSlot.OnEquipmentExecuted: Empty cooldown queue");
+                    SwitchChaosAndGesture.Logger.LogError("EquipmentSlot.OnEquipmentExecuted: Empty cooldown queue");
                 }
                 else
                 {
@@ -256,7 +256,7 @@ namespace SwitchChaosAndGesture
             });
         }
 
-        private static void Inventory_onInventoryChangedGlobal(Inventory inventory)
+        private static void EnsureNoTrackedCooldownsWithoutChaos(Inventory inventory)
         {
             if (!NetworkServer.active)
             {
@@ -276,12 +276,12 @@ namespace SwitchChaosAndGesture
             }
         }
 
-        private static void Run_onRunDestroyGlobal(Run obj)
+        private static void ResetMasterDict(Run obj)
         {
             masterCooldowns.Clear();
         }
 
-#if DEBUG
+        #if DEBUG
         [ConCommand(commandName = "dump_cooldowns", flags = ConVarFlags.ExecuteOnServer, helpText = "Dump the extra equipment cooldown queues.")]
         private static void CCDumpCooldowns(ConCommandArgs args)
         {
@@ -298,6 +298,6 @@ namespace SwitchChaosAndGesture
             }
             Debug.Log(sb.ToString().Trim('\n'));
         }
-#endif
+        #endif
     }
 }

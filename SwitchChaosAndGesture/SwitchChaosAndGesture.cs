@@ -10,7 +10,9 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 #pragma warning disable CS0618
 [assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
 #pragma warning restore CS0618
+#if DEBUG
 [assembly: HG.Reflection.SearchableAttribute.OptIn]
+#endif
 
 namespace SwitchChaosAndGesture
 {
@@ -19,7 +21,7 @@ namespace SwitchChaosAndGesture
     public class SwitchChaosAndGesture : BaseUnityPlugin
     {
         public const string PluginGUID = PluginAuthor + "." + PluginName;
-        public const string PluginAuthor = "GChinchi";
+        public const string PluginAuthor = "Chinchi";
         public const string PluginName = "SwitchChaosAndGesture";
         public const string PluginVersion = "1.1.0";
 
@@ -32,14 +34,15 @@ namespace SwitchChaosAndGesture
         public void Awake()
         {
             Logger = base.Logger;
-            isGestureAllowed = Config.Bind("Settings", "allowGesture", true, "Allow Gesture of the Drowned to be in the item pool.");
-            isGestureBlacklisted = Config.Bind("Settings", "blacklistGesture", false, "Blacklist the item for enemies.");
-            bannedAutocastEquipment = Config.Bind("Settings", "bannedAutocastEquipment", "Recycle,GoldGat,BossHunter,FireBallDash", "Which equipment will not be autocast with Gesture. Run the 'equipment_list' command on the console for a list of all internal name options.");
-            chaosCooldownPenalty = Config.Bind("Settings", "chaosCooldown", .2f, "The percent of the activated equipment's cooldown that will be added on due to Bottled Chaos' effect.");
+            isGestureAllowed = Config.Bind("Gesture of the Drowned", "Include In Item Pool", true, "Allow Gesture of the Drowned to be in the item pool.");
+            isGestureBlacklisted = Config.Bind("Gesture of the Drowned", "AI Blacklist", false, "Blacklist the item for enemies.");
+            bannedAutocastEquipment = Config.Bind("Gesture of the Drowned", "Banned Equipment", "Recycle,GoldGat,BossHunter,FireBallDash",
+                "Which equipment will not be autocast with Gesture. Run the 'equipment_list' command on the console for a list of all internal name options.");
+            chaosCooldownPenalty = Config.Bind("Bottled Chaos", "Cooldown Penalty", .2f, "The percent of the activated equipment's cooldown that will be added on due to Bottled Chaos' effect.");
             if (chaosCooldownPenalty.Value < 0)
             {
                 chaosCooldownPenalty.Value = 0f;
-                Logger.LogWarning("The 'chaosCooldown' config setting has a negative value. Readjusting to 0.0");
+                Logger.LogWarning("The 'Cooldown Penalty' config setting has a negative value. Readjusting to 0.0");
             }
             LoadBundle(Info.Location);
             ModifyItems();
