@@ -26,11 +26,13 @@
       <PluginDir>C:\Users\Chinchi\AppData\Roaming\r2modmanPlus-local\RiskOfRain2\profiles\Dev\BepInEx\plugins\$(Authors)-$(AssemblyName)\</PluginDir>
     </PropertyGroup>
     <Copy SourceFiles="$(OutDir)$(TargetFileName)" DestinationFolder="$(PluginDir)" Condition="Exists($(PluginDir))" />
+    <Copy SourceFiles="$(OutDir)$(TargetName).pdb" DestinationFolder="$(PluginDir)" Condition="Exists($(PluginDir))" />
     <Error Text="Plugin directory not found. Either the directory is incorrect or the plugin has not been installed." Condition="!Exists($(PluginDir))" />
   </Target>
 
   <Target Name="BuildRelease" AfterTargets="ValidateVersion" Condition="'$(Configuration)'=='Release'">
     <Copy SourceFiles="$(OutDir)$(TargetFileName)" DestinationFolder="$(SolutionDir)Thunderstore" />
+    <Copy SourceFiles="$(OutDir)$(TargetName).pdb" DestinationFolder="$(SolutionDir)Thunderstore" />
     <Copy SourceFiles="$(SolutionDir)README.md" DestinationFolder="$(SolutionDir)Thunderstore" />
     <Copy SourceFiles="$(SolutionDir)CHANGELOG.md" DestinationFolder="$(SolutionDir)Thunderstore" />
     <Exec Command="pwsh –ExecutionPolicy Bypass -Command &quot;&amp; '$(SolutionDir)Build\BuildRelease.ps1' '$(Authors)' '$(AssemblyName)' '$(Version)' '$(RepositoryUrl)' '$(Description)'&quot;" />
