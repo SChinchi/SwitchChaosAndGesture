@@ -27,6 +27,7 @@ public class SwitchChaosAndGesture : BaseUnityPlugin
 
     internal static ConfigEntry<bool> isGestureAllowed, isGestureBlacklisted;
     internal static ConfigEntry<string> bannedAutocastEquipment;
+    internal static ConfigEntry<float> gestureScaling;
     internal static ConfigEntry<float> chaosCooldownPenalty;
     internal static AssetBundle assetBundle;
     internal static new BepInEx.Logging.ManualLogSource Logger;
@@ -34,10 +35,22 @@ public class SwitchChaosAndGesture : BaseUnityPlugin
     public void Awake()
     {
         Logger = base.Logger;
+        var defaultScaling = 0.15f;
         isGestureAllowed = Config.Bind("Gesture of the Drowned", "Include In Item Pool", true, "Allow Gesture of the Drowned to be in the item pool.");
         isGestureBlacklisted = Config.Bind("Gesture of the Drowned", "AI Blacklist", false, "Blacklist the item for enemies.");
         bannedAutocastEquipment = Config.Bind("Gesture of the Drowned", "Banned Equipment", "Recycle,GoldGat,BossHunter,FireBallDash",
             "Which equipment will not be autocast with Gesture. Run the 'equipment_list' command on the console for a list of all internal name options.");
+        gestureScaling = Config.Bind("Gesture of the Drowned", "Stack Scaling", defaultScaling, "Modify the cooldown scaling for 1+ stacks.");
+        if (gestureScaling.Value < 0f)
+        {
+            gestureScaling.Value = 0f;
+            Logger.LogWarning("The 'Stack Scaling' config setting has a negative value. Readjusting to 0.0");
+        }
+        else if (gestureScaling.Value > 1f)
+        {
+            gestureScaling.Value = defaultScaling;
+            Logger.LogWarning($"The 'Stack Scaling' config setting has a value higher than 1.0. Readjusting to the default {defaultScaling}");
+        }
         chaosCooldownPenalty = Config.Bind("Bottled Chaos", "Cooldown Penalty", .2f, "The percent of the activated equipment's cooldown that will be added on due to Bottled Chaos' effect.");
         if (chaosCooldownPenalty.Value < 0)
         {

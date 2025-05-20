@@ -26,6 +26,7 @@ internal class Hooks
         On.RoR2.CharacterMaster.OnDisable += RemoveMasterFromDict;
         IL.RoR2.Inventory.SetEquipmentInternal += InitialiseCooldownTrackingForNewSlots;
         IL.RoR2.Inventory.UpdateEquipment += ApplyCooldownPenaltyOnChargeGain;
+        IL.RoR2.Inventory.CalculateEquipmentCooldownScale += ModifyGestureCooldownScaling;
         IL.RoR2.EquipmentSlot.OnEquipmentExecuted += ApplyOrQueueCooldownPenaltyOnExecute;
         Inventory.onInventoryChangedGlobal += EnsureNoTrackedCooldownsWithoutChaos;
         Run.onRunDestroyGlobal += ResetMasterDict;
@@ -176,6 +177,29 @@ internal class Hooks
                 }
             }
             return equipmentCooldown;
+        });
+    }
+
+    private static void ModifyGestureCooldownScaling(ILContext il)
+    {
+        var c = new ILCursor(il);
+        int gestureStacksVar = -1;
+        if (!c.TryGotoNext(
+                x => x.MatchLdsfld(typeof(RoR2Content.Items), nameof(RoR2Content.Items.AutoCastEquipment)),
+                x => x.MatchCallOrCallvirt<Inventory>(nameof(Inventory.GetItemCount)),
+                x => x.MatchStloc(out gestureStacksVar)) ||
+            !c.TryGotoNext(
+                x => x.MatchLdcR4(out _), // first stack
+                x => x.MatchLdcR4(out _), // scaling
+                x => x.MatchLdloc(gestureStacksVar)))
+        {
+            SwitchChaosAndGesture.Logger.LogError(BASE_ERROR_MESSAGE + il.Method.Name);
+            return;
+        }
+        c.Index += 2;
+        c.EmitDelegate<Func<float, float>>(scaling =>
+        {
+            return 1 - SwitchChaosAndGesture.gestureScaling.Value;
         });
     }
 
