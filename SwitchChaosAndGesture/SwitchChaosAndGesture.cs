@@ -16,6 +16,7 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 namespace SwitchChaosAndGesture;
 
 [BepInDependency(R2API.LanguageAPI.PluginGUID)]
+[BepInDependency(RiskOfOptionsGUID, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInPlugin(PluginGUID, PluginName, PluginVersion)]
 public class SwitchChaosAndGesture : BaseUnityPlugin
 {
@@ -23,13 +24,14 @@ public class SwitchChaosAndGesture : BaseUnityPlugin
     public const string PluginAuthor = "Chinchi";
     public const string PluginName = "SwitchChaosAndGesture";
     public const string PluginVersion = "1.1.1";
+    internal const string RiskOfOptionsGUID = "com.rune580.riskofoptions";
 
     private static AssetBundle assetBundle;
 
     public void Awake()
     {
         Log.Init(Logger);
-        Configs.Init(Config);
+        Configs.Init(Config, Info.Location);
         LoadBundle(Info.Location);
         ModifyItems();
         Hooks.Init();

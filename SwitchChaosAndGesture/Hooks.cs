@@ -34,6 +34,12 @@ internal class Hooks
     private static void CollectGestureBlacklistedEquipment(On.RoR2.EquipmentCatalog.orig_SetEquipmentDefs orig, EquipmentDef[] newEquipmentDefs)
     {
         orig(newEquipmentDefs);
+        ReloadBlacklistedEquipment();
+    }
+
+    internal static void ReloadBlacklistedEquipment()
+    {
+        bannedAutocastEquipment.Clear();
         foreach (var name in Configs.BannedAutocastEquipment.Value.Split(','))
         {
             bannedAutocastEquipment.Add(EquipmentCatalog.FindEquipmentIndex(name.Trim()));
