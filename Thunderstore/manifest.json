@@ -1,11 +1,11 @@
 {
   "name": "SwitchChaosAndGesture",
-  "version_number": "1.1.1",
+  "version_number": "1.2.0",
   "website_url": "https://github.com/schinchi/SwitchChaosAndGesture",
   "description": "Gesture of the Drowned and Bottled Chaos switch item tiers.",
   "dependencies": [
     "bbepis-BepInExPack-5.4.2117",
-    "RiskofThunder-HookGenPatcher-1.2.3",
+    "RiskofThunder-HookGenPatcher-1.2.5",
     "RiskofThunder-R2API_Language-1.0.1"
   ]
 }

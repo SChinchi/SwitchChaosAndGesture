@@ -1,3 +1,9 @@
+**1.2.0**
+
+* Added Risk of Options compatibility.
+* Added config for Gesture's cooldown stacking value.
+* Fixed Gesture not preventing blacklisted equipment from being fired automatically.
+
 **1.1.1**
 
 * Updated for Seekers of the Storm.
