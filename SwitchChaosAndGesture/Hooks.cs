@@ -49,17 +49,15 @@ internal class Hooks
         if (!c.TryGotoNext(
             MoveType.After,
             x => x.MatchLdsfld(typeof(RoR2Content.Items), nameof(RoR2Content.Items.AutoCastEquipment)),
-            x => x.MatchCallOrCallvirt<Inventory>(nameof(Inventory.GetItemCount)),
-            x => x.MatchLdcI4(0),
-            x => x.MatchCgt()))
+            x => x.MatchCallOrCallvirt<Inventory>(nameof(Inventory.GetItemCount))))
         {
             SwitchChaosAndGesture.Logger.LogError(BASE_ERROR_MESSAGE + il.Method.Name);
             return;
         }
         c.Emit(OpCodes.Ldarg_0);
-        c.EmitDelegate<Func<bool, EquipmentSlot, bool>>((autocast, equipmentSlot) =>
+        c.EmitDelegate<Func<int, EquipmentSlot, int>>((canAutocast, equipmentSlot) =>
         {
-            return autocast && !bannedAutocastEquipment.Contains(equipmentSlot.equipmentIndex);
+            return !bannedAutocastEquipment.Contains(equipmentSlot.equipmentIndex) ? canAutocast : 0;
         });
     }
 
