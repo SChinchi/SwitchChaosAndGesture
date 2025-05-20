@@ -11,10 +11,8 @@ namespace SwitchChaosAndGesture;
 
 internal class Hooks
 {
-    private const string BASE_ERROR_MESSAGE = "Failed to patch method: ";
-
     private static bool popNextCooldown = false;
-    internal static readonly Dictionary<CharacterMaster, List<float>[]> masterCooldowns = [];
+    private static readonly Dictionary<CharacterMaster, List<float>[]> masterCooldowns = [];
     private static readonly HashSet<EquipmentIndex> bannedAutocastEquipment = [];
 
     public static void Init()
@@ -36,7 +34,7 @@ internal class Hooks
     private static void CollectGestureBlacklistedEquipment(On.RoR2.EquipmentCatalog.orig_SetEquipmentDefs orig, EquipmentDef[] newEquipmentDefs)
     {
         orig(newEquipmentDefs);
-        foreach (var name in SwitchChaosAndGesture.bannedAutocastEquipment.Value.Split(','))
+        foreach (var name in Configs.BannedAutocastEquipment.Value.Split(','))
         {
             bannedAutocastEquipment.Add(EquipmentCatalog.FindEquipmentIndex(name.Trim()));
         }
@@ -52,7 +50,7 @@ internal class Hooks
             x => x.MatchLdsfld(typeof(RoR2Content.Items), nameof(RoR2Content.Items.AutoCastEquipment)),
             x => x.MatchCallOrCallvirt<Inventory>(nameof(Inventory.GetItemCount))))
         {
-            SwitchChaosAndGesture.Logger.LogError(BASE_ERROR_MESSAGE + il.Method.Name);
+            Log.PatchFail(il);
             return;
         }
         c.Emit(OpCodes.Ldarg_0);
@@ -73,7 +71,7 @@ internal class Hooks
             x => x.MatchLdarg(0),
             x => x.MatchLdcI4(1)))
         {
-            SwitchChaosAndGesture.Logger.LogError(BASE_ERROR_MESSAGE + il.Method.Name);
+            Log.PatchFail(il);
             return;
         }
         c.Emit(OpCodes.Ldarg_0);
@@ -111,7 +109,7 @@ internal class Hooks
             x => x.MatchLdlen(),
             x => x.MatchConvI4()))
         {
-            SwitchChaosAndGesture.Logger.LogError(BASE_ERROR_MESSAGE + il.Method.Name);
+            Log.PatchFail(il);
             return;
         }
         c.Emit(OpCodes.Ldarg_0);
@@ -146,7 +144,7 @@ internal class Hooks
             x => x.MatchLdfld<EquipmentState>(nameof(EquipmentState.equipmentDef)),
             x => x.MatchLdfld<EquipmentDef>(nameof(EquipmentDef.cooldown))))
         {
-            SwitchChaosAndGesture.Logger.LogError(BASE_ERROR_MESSAGE + il.Method.Name);
+            Log.PatchFail(il);
             return;
         }
         c.Emit(OpCodes.Ldarg_0);
@@ -160,7 +158,7 @@ internal class Hooks
                 if (cooldowns.Length <= slot)
                 {
                     // This should never happen
-                    SwitchChaosAndGesture.Logger.LogWarning("Inventory.UpdateEquipment cooldown array not resized properly.");
+                    Log.Warning("Inventory.UpdateEquipment cooldown array not resized properly.");
                     return equipmentCooldown;
                 }
                 var cooldownQueue = cooldowns[slot];
@@ -172,7 +170,7 @@ internal class Hooks
                     {
                         var extraCooldown = cooldownQueue[0];
                         cooldownQueue.RemoveAt(0);
-                        return equipmentCooldown + extraCooldown * SwitchChaosAndGesture.chaosCooldownPenalty.Value;
+                        return equipmentCooldown + extraCooldown * Configs.ChaosCooldownPenalty.Value;
                     }
                 }
             }
@@ -193,19 +191,18 @@ internal class Hooks
                 x => x.MatchLdcR4(out _), // scaling
                 x => x.MatchLdloc(gestureStacksVar)))
         {
-            SwitchChaosAndGesture.Logger.LogError(BASE_ERROR_MESSAGE + il.Method.Name);
+            Log.PatchFail(il);
             return;
         }
         c.Index += 2;
         c.EmitDelegate<Func<float, float>>(scaling =>
         {
-            return 1 - SwitchChaosAndGesture.gestureScaling.Value;
+            return 1 - Configs.GestureScaling.Value;
         });
     }
 
     private static void ApplyOrQueueCooldownPenaltyOnExecute(ILContext il)
     {
-        var errorMessage = BASE_ERROR_MESSAGE + il.Method.Name;
         Inventory inventory = null;
         CharacterMaster master = null;
         byte slot = 0;
@@ -215,7 +212,7 @@ internal class Hooks
             x => x.MatchLdarg(0),
             x => x.MatchCallOrCallvirt(AccessTools.PropertyGetter(typeof(EquipmentSlot), nameof(EquipmentSlot.equipmentIndex)))))
         {
-            SwitchChaosAndGesture.Logger.LogError(errorMessage);
+            Log.PatchFail(il.Method.Name + " #1");
             return;
         }
         c.Index += 1;
@@ -240,7 +237,7 @@ internal class Hooks
         });
         if (!c.TryGotoNext(x => x.MatchCallOrCallvirt<EquipmentSlot>(nameof(EquipmentSlot.PerformEquipmentAction))))
         {
-            SwitchChaosAndGesture.Logger.LogError(errorMessage);
+            Log.PatchFail(il.Method.Name + " #2");
             return;
         }
         c.Index += 3;
@@ -249,7 +246,7 @@ internal class Hooks
             var cooldownQueue = masterCooldowns[master][slot];
             if (cooldownQueue.Count == 0)
             {
-                SwitchChaosAndGesture.Logger.LogError("EquipmentSlot.OnEquipmentExecuted: Empty cooldown queue");
+                Log.Error("EquipmentSlot.OnEquipmentExecuted: Empty cooldown queue");
             }
             else
             {
@@ -261,14 +258,14 @@ internal class Hooks
             MoveType.After,
             x => x.MatchCallOrCallvirt(typeof(EffectManager), nameof(EffectManager.SpawnEffect))))
         {
-            SwitchChaosAndGesture.Logger.LogError(errorMessage);
+            Log.PatchFail(il.Method.Name + " #3");
             return;
         }
         c.EmitDelegate(() =>
         {
             if (addCooldownNow)
             {
-                var extraCooldown = masterCooldowns[master][slot][0] * inventory.CalculateEquipmentCooldownScale() * SwitchChaosAndGesture.chaosCooldownPenalty.Value;
+                var extraCooldown = masterCooldowns[master][slot][0] * inventory.CalculateEquipmentCooldownScale() * Configs.ChaosCooldownPenalty.Value;
                 masterCooldowns[master][slot].RemoveAt(0);
                 var state = inventory.GetEquipment(slot);
                 inventory.SetEquipment(new EquipmentState(state.equipmentIndex, state.chargeFinishTime + extraCooldown, state.charges), slot);
@@ -307,7 +304,7 @@ internal class Hooks
         var result = orig(self, token);
         if (token == "ITEM_RANDOMEQUIPMENTTRIGGER_DESC")
         {
-            result = string.Format(result, SwitchChaosAndGesture.chaosCooldownPenalty.Value * 100f);
+            result = string.Format(result, Configs.ChaosCooldownPenalty.Value * 100f);
         }
         return result;
     }
