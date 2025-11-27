@@ -35,7 +35,7 @@ public class SwitchChaosAndGesture : BaseUnityPlugin
         LoadBundle(Info.Location);
         ModifyItems();
         Hooks.Init();
-        RoR2Application.onLoad += ApplyModelChanges;
+        ApplyModelChanges();
     }
 
     private void LoadBundle(string directory)
