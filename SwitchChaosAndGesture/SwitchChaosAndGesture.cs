@@ -23,7 +23,7 @@ public class SwitchChaosAndGesture : BaseUnityPlugin
     public const string PluginGUID = PluginAuthor + "." + PluginName;
     public const string PluginAuthor = "Chinchi";
     public const string PluginName = "SwitchChaosAndGesture";
-    public const string PluginVersion = "1.2.0";
+    public const string PluginVersion = "1.2.1";
     internal const string RiskOfOptionsGUID = "com.rune580.riskofoptions";
 
     private static AssetBundle assetBundle;

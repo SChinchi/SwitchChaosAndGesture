@@ -1,3 +1,7 @@
+**1.2.1**
+
+* Update for Alloyed Collective.
+
 **1.2.0**
 
 * Added Risk of Options compatibility.
