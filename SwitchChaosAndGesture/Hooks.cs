@@ -1,5 +1,4 @@
-﻿using HarmonyLib;
-using Mono.Cecil.Cil;
+﻿using Mono.Cecil.Cil;
 using MonoMod.Cil;
 using RoR2;
 using System;
@@ -12,7 +11,7 @@ namespace SwitchChaosAndGesture;
 internal class Hooks
 {
     private static bool popNextCooldown = false;
-    private static readonly Dictionary<CharacterMaster, List<float>[]> masterCooldowns = [];
+    private static readonly Dictionary<CharacterMaster, List<float>[][]> masterCooldowns = [];
     private static readonly HashSet<EquipmentIndex> bannedAutocastEquipment = [];
 
     public static void Init()
@@ -22,10 +21,10 @@ internal class Hooks
         IL.EntityStates.GoldGat.BaseGoldGatState.FixedUpdate += CheckCrowdfunderCanBeAutocast;
         On.RoR2.CharacterMaster.OnEnable += AddMasterToDict;
         On.RoR2.CharacterMaster.OnDisable += RemoveMasterFromDict;
-        IL.RoR2.Inventory.SetEquipmentInternal += InitialiseCooldownTrackingForNewSlots;
+        On.RoR2.Inventory.SetEquipmentInternal_EquipmentState_uint_uint += InitialiseCooldownTrackingForNewSlots;
         IL.RoR2.Inventory.UpdateEquipment += ApplyCooldownPenaltyOnChargeGain;
         IL.RoR2.Inventory.CalculateEquipmentCooldownScale += ModifyGestureCooldownScaling;
-        IL.RoR2.EquipmentSlot.OnEquipmentExecuted += ApplyOrQueueCooldownPenaltyOnExecute;
+        IL.RoR2.EquipmentSlot.OnEquipmentExecuted_byte_byte_EquipmentIndex += ApplyOrQueueCooldownPenaltyOnExecute;
         Inventory.onInventoryChangedGlobal += EnsureNoTrackedCooldownsWithoutChaos;
         Run.onRunDestroyGlobal += ResetMasterDict;
         On.RoR2.Language.GetLocalizedStringByToken += FormatBottledChaosDesc;
@@ -54,7 +53,7 @@ internal class Hooks
         if (!c.TryGotoNext(
             MoveType.After,
             x => x.MatchLdsfld(typeof(RoR2Content.Items), nameof(RoR2Content.Items.AutoCastEquipment)),
-            x => x.MatchCallOrCallvirt<Inventory>(nameof(Inventory.GetItemCount))))
+            x => x.MatchCallOrCallvirt<Inventory>(nameof(Inventory.GetItemCountEffective))))
         {
             Log.PatchFail(il);
             return;
@@ -71,7 +70,7 @@ internal class Hooks
         var c = new ILCursor(il);
         if (!c.TryGotoNext(
             MoveType.After,
-            x => x.MatchCallOrCallvirt<Inventory>(nameof(Inventory.GetItemCount)),
+            x => x.MatchCallOrCallvirt<Inventory>(nameof(Inventory.GetItemCountEffective)),
             x => x.MatchLdcI4(0),
             x => x.MatchBle(out _),
             x => x.MatchLdarg(0),
@@ -105,41 +104,39 @@ internal class Hooks
         }
     }
 
-    private static void InitialiseCooldownTrackingForNewSlots(ILContext il)
+    private static bool InitialiseCooldownTrackingForNewSlots(On.RoR2.Inventory.orig_SetEquipmentInternal_EquipmentState_uint_uint orig, Inventory self, EquipmentState equipmentState, uint slot, uint set)
     {
-        var c = new ILCursor(il);
-        if (!c.TryGotoNext(
-            MoveType.After,
-            x => x.MatchLdarg(0),
-            x => x.MatchLdfld<Inventory>(nameof(Inventory.equipmentStateSlots)),
-            x => x.MatchLdlen(),
-            x => x.MatchConvI4()))
+        if (NetworkServer.active
+            && Run.instance
+            && !Run.instance.IsEquipmentExpansionLocked(equipmentState.equipmentIndex))
         {
-            Log.PatchFail(il);
-            return;
-        }
-        c.Emit(OpCodes.Ldarg_0);
-        c.Emit(OpCodes.Ldarg_2);
-        c.EmitDelegate<Func<int, Inventory, uint, int>>((num, inventory, slot) =>
-        {
-            if (NetworkServer.active)
+            var master = self.GetComponent<CharacterMaster>();
+            if (master != null && masterCooldowns.TryGetValue(master, out var slots))
             {
-                var master = inventory.GetComponent<CharacterMaster>();
-                if (master != null && masterCooldowns.TryGetValue(master, out var cooldowns))
+                int currentSlotLength = slots.Length;
+                if (currentSlotLength <= slot)
                 {
-                    if (cooldowns.Length <= slot)
+                    Array.Resize(ref slots, (int)(slot + 1U));
+                    for (int i = currentSlotLength; i < slots.Length; i++)
                     {
-                        Array.Resize(ref cooldowns, (int)(slot + 1U));
-                        for (int i = num; i < cooldowns.Length; i++)
-                        {
-                            cooldowns[i] = [];
-                        }
-                        masterCooldowns[master] = cooldowns;
+                        slots[i] = [];
                     }
+                    masterCooldowns[master] = slots;
+                }
+                int currentSetLength = slots[slot].Length;
+                if (currentSetLength <= set)
+                {
+                    var slotSets = slots[slot];
+                    Array.Resize(ref slotSets, (int)(set + 1U));
+                    for (int i = currentSetLength; i < slotSets.Length; i++)
+                    {
+                        slotSets[i] = [];
+                    }
+                    slots[slot] = slotSets;
                 }
             }
-            return num;
-        });
+        }
+        return orig(self, equipmentState, slot, set);
     }
 
     private static void ApplyCooldownPenaltyOnChargeGain(ILContext il)
@@ -156,22 +153,23 @@ internal class Hooks
         c.Emit(OpCodes.Ldarg_0);
         c.Emit(OpCodes.Ldloc_1);
         c.Emit(OpCodes.Ldloc_2);
-        c.EmitDelegate<Func<float, Inventory, uint, byte, float>>((equipmentCooldown, inventory, maxCharges, slot) =>
+        c.Emit(OpCodes.Ldloc_3);
+        c.EmitDelegate<Func<float, Inventory, uint, uint, byte, float>>((equipmentCooldown, inventory, maxCharges, slot, set) =>
         {
             var master = inventory.GetComponent<CharacterMaster>();
             if (master != null && masterCooldowns.TryGetValue(master, out var cooldowns))
             {
-                if (cooldowns.Length <= slot)
+                if (cooldowns.Length <= slot || cooldowns[slot].Length <= set)
                 {
                     // This should never happen
                     Log.Warning("Inventory.UpdateEquipment cooldown array not resized properly.");
                     return equipmentCooldown;
                 }
-                var cooldownQueue = cooldowns[slot];
+                var cooldownQueue = cooldowns[slot][set];
                 if (cooldownQueue.Count > 0 && popNextCooldown)
                 {
                     // Need to make sure first that we are not about to reach max charges or the pop would be wasted
-                    var state = inventory.equipmentStateSlots[slot];
+                    var state = inventory._equipmentStateSlots[slot][set];
                     if (!(state.charges + (byte)1 >= maxCharges && !state.chargeFinishTime.isPositiveInfinity))
                     {
                         var extraCooldown = cooldownQueue[0];
@@ -190,7 +188,7 @@ internal class Hooks
         int gestureStacksVar = -1;
         if (!c.TryGotoNext(
                 x => x.MatchLdsfld(typeof(RoR2Content.Items), nameof(RoR2Content.Items.AutoCastEquipment)),
-                x => x.MatchCallOrCallvirt<Inventory>(nameof(Inventory.GetItemCount)),
+                x => x.MatchCallOrCallvirt<Inventory>(nameof(Inventory.GetItemCountEffective)),
                 x => x.MatchStloc(out gestureStacksVar)) ||
             !c.TryGotoNext(
                 x => x.MatchLdcR4(out _), // first stack
@@ -212,18 +210,22 @@ internal class Hooks
         Inventory inventory = null;
         CharacterMaster master = null;
         byte slot = 0;
+        byte set = 0;
         bool addCooldownNow = false;
         var c = new ILCursor(il);
         if (!c.TryGotoNext(
+            MoveType.After,
             x => x.MatchLdarg(0),
-            x => x.MatchCallOrCallvirt(AccessTools.PropertyGetter(typeof(EquipmentSlot), nameof(EquipmentSlot.equipmentIndex)))))
+            x => x.MatchLdfld<EquipmentSlot>(nameof(EquipmentSlot.inventory))))
         {
             Log.PatchFail(il.Method.Name + " #1");
             return;
         }
-        c.Index += 1;
+        c.Emit(OpCodes.Ldarg_0);
+        c.Emit(OpCodes.Ldarg_1);
+        c.Emit(OpCodes.Ldarg_2);
         // Setup stuff
-        c.EmitDelegate<Func<EquipmentSlot, EquipmentSlot>>(equipmentSlot =>
+        c.EmitDelegate<Action<EquipmentSlot, byte, byte>>((equipmentSlot, currentSlot, currentSet) =>
         {
             // `Inventory.UpdateEquipment` is called shortly after in the original method
             // and we don't want to pop any cooldowns stored already. `addCooldownNow` will
@@ -231,15 +233,15 @@ internal class Hooks
             popNextCooldown = false;
             inventory = equipmentSlot.inventory;
             master = inventory.GetComponent<CharacterMaster>();
-            slot = inventory.activeEquipmentSlot;
-            var state = inventory.equipmentStateSlots[slot];
-            var hasChaos = inventory.GetItemCount(DLC1Content.Items.RandomEquipmentTrigger) > 0;
+            slot = currentSlot;
+            set = currentSet;
+            var state = inventory.GetActiveEquipment();
+            var hasChaos = inventory.GetItemCountEffective(DLC1Content.Items.RandomEquipmentTrigger) > 0;
             if (hasChaos)
             {
-                masterCooldowns[master][slot].Add(0f);
+                masterCooldowns[master][slot][set].Add(0f);
             }
             addCooldownNow = state.chargeFinishTime.isPositiveInfinity && hasChaos;
-            return equipmentSlot;
         });
         if (!c.TryGotoNext(x => x.MatchCallOrCallvirt<EquipmentSlot>(nameof(EquipmentSlot.PerformEquipmentAction))))
         {
@@ -249,7 +251,7 @@ internal class Hooks
         c.Index += 3;
         c.EmitDelegate<Func<EquipmentIndex, EquipmentIndex>>((equipmentIndex) =>
         {
-            var cooldownQueue = masterCooldowns[master][slot];
+            var cooldownQueue = masterCooldowns[master][slot][set];
             if (cooldownQueue.Count == 0)
             {
                 Log.Error("EquipmentSlot.OnEquipmentExecuted: Empty cooldown queue");
@@ -271,10 +273,10 @@ internal class Hooks
         {
             if (addCooldownNow)
             {
-                var extraCooldown = masterCooldowns[master][slot][0] * inventory.CalculateEquipmentCooldownScale() * Configs.ChaosCooldownPenalty.Value;
-                masterCooldowns[master][slot].RemoveAt(0);
-                var state = inventory.GetEquipment(slot);
-                inventory.SetEquipment(new EquipmentState(state.equipmentIndex, state.chargeFinishTime + extraCooldown, state.charges), slot);
+                var extraCooldown = masterCooldowns[master][slot][set][0] * inventory.CalculateEquipmentCooldownScale() * Configs.ChaosCooldownPenalty.Value;
+                masterCooldowns[master][slot][set].RemoveAt(0);
+                var state = inventory.GetEquipment(slot, set);
+                inventory.SetEquipment(new EquipmentState(state.equipmentIndex, state.chargeFinishTime + extraCooldown, state.charges), slot, set);
             }
             popNextCooldown = true;
         });
@@ -286,21 +288,24 @@ internal class Hooks
         {
             return;
         }
-        if (inventory.GetItemCount(DLC1Content.Items.RandomEquipmentTrigger) > 0)
+        if (inventory.GetItemCountEffective(DLC1Content.Items.RandomEquipmentTrigger) > 0)
         {
             return;
         }
         var master = inventory.GetComponent<CharacterMaster>();
         if (master && masterCooldowns.TryGetValue(master, out var cooldowns))
         {
-            foreach (var slotQueue in cooldowns)
+            foreach (var slot in cooldowns)
             {
-                slotQueue.Clear();
+                foreach (var set in slot)
+                {
+                    set.Clear();
+                }
             }
         }
     }
 
-    private static void ResetMasterDict(Run obj)
+    private static void ResetMasterDict(Run _)
     {
         masterCooldowns.Clear();
     }
@@ -327,7 +332,10 @@ internal class Hooks
             var slots = kvp.Value;
             for (int i = 0; i < slots.Length; i++)
             {
-                sb.AppendLine("-Slot " + i + ": [" + string.Join(", ", slots[i]) + "]");
+                for (int j = 0; j < slots[i].Length; j++)
+                {
+                    sb.AppendLine($"-Slot {i}: [{string.Join(", ", slots[i][j])}]");
+                }
             }
         }
         Debug.Log(sb.ToString().Trim('\n'));
